@@ -2,8 +2,6 @@ import random
 #Impaire Noir (1 Pique, 3 Trefle)
 #Pair Rouge (2 Coeur, 4 Carreaux)
 #[Couleur, valeur]
-# Treys , a utiliser
-
 
 global deck
 global deck_pioche
@@ -97,9 +95,11 @@ class Joueur:
         valeurs_de_allCards = [card[1] for card in allCards]
         valeurs_de_allCards.sort()
 
-        #Fait un dictionaire ("carteTriee")qui a pour clée les valeurs des couleurs (1, 2, 3, 4), et les valeurs sous forme de liste : sa donne un truc de cette forme {1: [4, 5, 12], 2:[6, 9, 14], ...}
+        #Fait un dictionaire ("carteTriee") qui a pour clée les valeurs des couleurs (1, 2, 3, 4), et les valeurs sous forme de liste : sa donne un truc de cette forme {1: [4, 5, 12], 2:[6, 9, 14], ...}
         for couleur, valeur in allCards:
             carteTriee.setdefault(couleur, []).append(valeur)
+            
+            #Fait une liste du nombre d'occurence de chaque valeur
             compteur_valeurs[valeur] = compteur_valeurs.get(valeur, 0) + 1
 
 
@@ -114,12 +114,13 @@ class Joueur:
             listeDeCartes_sans_doublons = sorted(list(set(listeDeCartes)))
 
             #  Condition 2A : STRAIGHT FLUSH (5 high):
+            
             #Cherche pour le cas spécifique : AS - 2 - 3 - 4 - 5
             if 14 in listeDeCartes_sans_doublons and 2 in listeDeCartes_sans_doublons and 3 in listeDeCartes_sans_doublons and 4 in listeDeCartes_sans_doublons and 5 in listeDeCartes_sans_doublons:
                 return 2
             
-            #  Condition 2B : STRAIGHT FLUSH GENERAL
-            # Vérifie si les 4 premières cartes ce suivent , la derbières sera utiliser pour le kicker
+            #  Condition 2B : Straight Flush , Cas Général
+            # Vérifie si les 4 premières cartes ce suivent , la dernières sera utiliser pour le kicker (pas encore implémenté)
             for i in range(len(listeDeCartes_sans_doublons) - 4):
                 if (listeDeCartes_sans_doublons[i + 1] == listeDeCartes_sans_doublons[i] + 1 and
                     listeDeCartes_sans_doublons[i + 2] == listeDeCartes_sans_doublons[i] + 2 and
@@ -127,10 +128,10 @@ class Joueur:
                     listeDeCartes_sans_doublons[i + 4] == listeDeCartes_sans_doublons[i] + 4):
                     return 2
                 
-        # Condition 3: 4 OF A KIND (CARRE)
+        # Condition 3: 4 of a Kind (Carré)
         if 4 in compteur_valeurs.values(): return 3
         
-        # Condition 4 : FULL HOUSE
+        # Condition 4 : Full House (Three of a kind + pair)
         three_of_a_kind = 3 in compteur_valeurs.values()
         pair = 2 in compteur_valeurs.values()
 
@@ -141,15 +142,17 @@ class Joueur:
         for listeDeCartes in carteTriee.values():
             if len(listeDeCartes) >= 5: return 5
         
-        #Condition 6 : Straight (5 High) 
-        #On ajoute un 1 si jamais on detecte un AS dans les valeurs (preparation)
+        #Condition 6 : Straight 
+        
+        #On ajoute un 1 si jamais on detecte un AS dans les valeurs (le cas AS-2-3-4-5), permet de quand même utiliser l'algo de detection de cas général 
         if 14 in valeurs_de_allCards:
             valeurs_de_allCards.insert(0, 1)
             valeurs_de_allCards.sort()
 
+        #Condition 6a : Straight , Cas Général
         for i in range(len(valeurs_de_allCards) - 4):
             carte_de_debut = valeurs_de_allCards[i]
-            # On scanne les 4 premières carte pour voir si elle se suivent ( la dernières n'est pas scanner pour calculer les kickers)
+            # On scanne les 4 premières carte pour voir si elle se suivent (la dernière sera utiliser pour calculer le kick , pas encore implémenté)
             if (valeurs_de_allCards[i+1] == carte_de_debut + 1 and
                 valeurs_de_allCards[i+2] == carte_de_debut + 2 and
                 valeurs_de_allCards[i+3] == carte_de_debut + 3 and
@@ -174,8 +177,6 @@ class Joueur:
         high_card_value = max(valeurs_de_allCards)
 
         return [10, high_card_value] 
-
-        
         
 
 Joueur1 = Joueur(DistribuerX(2), 5000, 0.2, 0.6)
@@ -183,4 +184,5 @@ Joueur1 = Joueur(DistribuerX(2), 5000, 0.2, 0.6)
 maintest = [deck[Joueur1.Main[0]], deck[Joueur1.Main[1]]] + board
 maintest.sort()
 print("\n" + "Évaluation : " + str(Joueur1.evaluationMain()))
+
 print("Main + Board : " + str(maintest))
