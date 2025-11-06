@@ -7,8 +7,8 @@ pygame.init()
 SCREEN_WIDTH = 900
 SCREEN_HEIGHT = 700
 
-CARD_WIDTH = 250
-CARD_HEIGHT = 250
+CARD_WIDTH = 100
+CARD_HEIGHT = 144
 CARD_SPACING = 10
 
 ammount_to_call = 0
@@ -26,7 +26,7 @@ couleur_du_font = ((30, 250, 30))
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 try:
-     spritesheet = pygame.image.load('Azerty.jpg').convert_alpha()
+     spritesheet = pygame.image.load('spritesheet.png').convert_alpha()
 except pygame.error as e:
     print(f"Erreur pendant le chargement de la spritesheet : {e}")
     pygame.quit()
@@ -69,5 +69,6 @@ while running:
     #dessiner_cartes(screen, board, (SCREEN_WIDTH / 2) - ( total_board_width / 2) , (SCREEN_HEIGHT / 2) - CARD_HEIGHT*2 )
     dessiner_cartes(screen, main_joueur_cartes, (SCREEN_WIDTH / 2) - 100, 450)
     pygame.display.flip()
+
 
 pygame.quit()
