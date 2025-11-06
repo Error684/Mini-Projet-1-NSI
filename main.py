@@ -1,15 +1,16 @@
 import random
+import sys
 #Impaire Noir (1 Pique, 3 Trefle)
 #Pair Rouge (2 Coeur, 4 Carreaux)
 #[Couleur, valeur]
 # Treys , a utiliser
-
 
 global deck
 global deck_pioche
 
 global board
 global pot
+
 
 ConvertionCouleurs = {1: "Pique", 2: "Coeur", 3: "Trèfle", 4: "Carreau"}
 ConvertionValeurs = {11: "Valet", 12: "Dame", 13: "Roi", 14: "As"}
@@ -60,22 +61,30 @@ class Joueur:
         self.Agression = Agression
         self.freqBluff = freqBluff      
     def Miser(self):
+        force_main = 0
+        classement_main = self.evaluationMain()
+        if isinstance(classement_main, tuple):
+            force_main = classement_main[0]
+        else:
+            force_main = classement_main
         #Retourne 0.1 pour une high card et 1 pour une flush royale (ducoup sa nous donne une range entre 0.1 et 1)
-        bettingForce = (10 - self.evaluationMain() + 1)
+        bettingForce = (10 - force_main + 1)
         #Retourne une mise que le bot va placer , proportionelle a la puissance de la main , l'aggresivité et l'argent actuelle du joueur
         BettingAmmount = (0.5 * bettingForce * (0.5 + self.Agression * 0.5)) * self.Wallet / 4
         # 10 pour éviter les mise minuscules
         return max(10, BettingAmmount)
+    
     #Détermine l'action du bot (Fold, Check/Call, Bet/Raise) et le montant de mise associé 
     def prendreUneDecision(self, ammount_to_call, minimum_raise):
-
-
         #Récupère l'evaluation de la main 
+        force_main = 0
         classement_main = self.evaluationMain()
-        if isinstance(force_main, tuple):
+        
+        if isinstance(classement_main, tuple):
             force_main = classement_main[0]
         else:
             force_main = classement_main
+        
 
         """
         Maintenant , on va crée trois "catégorie" de puissance de main basée sur le classement que self.evaluationMain donne, sa va donc nous donner :
@@ -83,25 +92,42 @@ class Joueur:
         II : Mains Fortes: (5-7)
         III : Mains Faible / A ne pas miser (hormis bluff) : 8-10
         """
+
         #I Mains très fortes
-        if classement_main <= 4:
+        if force_main <= 4:
             bet_ammount = self.Miser() #Grosse mise
-            #Le joueur d'avant a check , on mise
+            #Le joueur d'avant a check et/ou fold , on mise
             if previous_bet == 0:
                 return "Bet", bet_ammount
             else:
-                #Le joueur d'avant a raise, calcule une relance agressive (maximum entre la somme minimum pour call + raise et la somme minimum pour call + la mise)
+                #Le joueur d'avant a raise, calcule une relance agressive (maximum entre la somme minimum pour call + raise et la somme minimum pour call + l  a mise)
                 raise_amount = max(ammount_to_call + minimum_raise, ammount_to_call + bet_ammount)
                 return "Raise", raise_amount
-            
         #II Mains Fortes
-        elif classement_main <= 7:
-
-            pass
+        elif force_main <= 7:          
+            bet_ammount = self.Miser() * 0.7      
+            #Le joueur d'avant a check/fold , on mise / check, les weights sont de a [3, 1] , c'est a dire on check 3x plus souvent que ce qu'on mise
+            if previous_bet == 0:
+                return random.choices((("Check"), ("Bet", bet_ammount)), [3, 1])
+            
+            elif self.Agression >= 0.5 and previous_bet != 0:
+                #Relance legèrement agressive sur le bet précedent
+                raise_amount = max(ammount_to_call + minimum_raise, ammount_to_call + (0.10 * bet_ammount))
+                return "Raise", raise_amount
+            else: 
+                return "Call", ammount_to_call
+            
         #III Mains faible + bluffs
         else:
-            pass
-
+            bet_ammount = self.Miser() * 0.3
+            if self.Agression >= 0.5:
+                return random.choices((("Check"), ("Bet", bet_ammount)), [1, self.freqBluff * 10])
+            else:
+                return random.choices((("Check"), ("Bet", bet_ammount)), [self.freqBluff * 10, 1])
+            
+            if self.Agression == 0 and self.freqBluff == 0: return "Fold"
+            
+            
     def evaluationMain(self):
         """
         La méthode retourne ceci quand les conditions sont les bonnes :
@@ -116,6 +142,7 @@ class Joueur:
         9 : Pair
         10 : High Card
         """
+        
         carteTriee = {} 
         compteur_valeurs = {}
         VALEUR_FLUSH_ROYALE = {10, 11, 12, 13, 14}
@@ -140,8 +167,7 @@ class Joueur:
 
         #  Condition 1 : FLUSH ROYALE
         #Si VALEUR_FLUSH_ROYALE est contenu dans une des clée de carteTriee (vu que VALEUR_FLUS_ROYALE est un set , on vérifie si il est subset), si oui : Quinte flush royale
-        if any(VALEUR_FLUSH_ROYALE.issubset(set(listeDeCartes)) for listeDeCartes in carteTriee.values()):
-            return 1
+        if any(VALEUR_FLUSH_ROYALE.issubset(set(listeDeCartes)) for listeDeCartes in carteTriee.values()): return 1
         
         # Condition 2 : STRAIGHT FLUSH
         for listeDeCartes in carteTriee.values():
@@ -151,16 +177,16 @@ class Joueur:
             #  Condition 2A : STRAIGHT FLUSH (5 high):
             #Cherche pour le cas spécifique : AS - 2 - 3 - 4 - 5
             if 14 in listeDeCartes_sans_doublons and 2 in listeDeCartes_sans_doublons and 3 in listeDeCartes_sans_doublons and 4 in listeDeCartes_sans_doublons and 5 in listeDeCartes_sans_doublons:
-                return 2
+                return 2, 5
             
             #  Condition 2B : STRAIGHT FLUSH GENERAL
-            # Vérifie si les 4 premières cartes ce suivent , la derbières sera utiliser pour le kicker
+            # Vérifie si les 4 premières cartes ce suivent , la dernières sera utiliser pour le kicker
             for i in range(len(listeDeCartes_sans_doublons) - 4):
                 if (listeDeCartes_sans_doublons[i + 1] == listeDeCartes_sans_doublons[i] + 1 and
                     listeDeCartes_sans_doublons[i + 2] == listeDeCartes_sans_doublons[i] + 2 and
                     listeDeCartes_sans_doublons[i + 3] == listeDeCartes_sans_doublons[i] + 3 and
                     listeDeCartes_sans_doublons[i + 4] == listeDeCartes_sans_doublons[i] + 4):
-                    return 2
+                    return 2, listeDeCartes_sans_doublons[i + 5]
                 
         # Condition 3: 4 OF A KIND (CARRE)
         if 4 in compteur_valeurs.values(): return 3
@@ -169,7 +195,7 @@ class Joueur:
         three_of_a_kind = 3 in compteur_valeurs.values()
         pair = 2 in compteur_valeurs.values()
 
-        if (three_of_a_kind and pair) or (list(compteur_valeurs.values()).count(3) >=2): return 4
+        if (three_of_a_kind and pair) or (list(compteur_valeurs.values()).count(3) >= 2): return 4
 
         #Condition 5 : Flush
         #Si une couleurs a plus de 5 éléments , on a une Flush
@@ -207,7 +233,6 @@ class Joueur:
 
         # Si aucunes des condition de sont atteintes , on a une High Card
         high_card_value = max(valeurs_de_allCards)
-
         return 10, high_card_value
 
 
@@ -220,6 +245,39 @@ print("\n")
 print("Main + Board : " + str(maintest))
 
 resultat = Joueur1.evaluationMain()
+
+def JoueurControllable(Wallet):
+    choix_valide = False
+    try:
+        choix = int(input("Que voulez vous faire ? (1 : Check, 2 : Miser, 3 : Fold, 4 : All-In  "))
+    except ValueError:
+        print("Hihihiha")
+        sys.quit()
+    if choix == 1:
+        print("Check")
+        previous_bet = 0
+    elif choix == 2:
+        while choix_valide == False:
+            try:
+                mise = int(input(f"Combien voulez vous miser , vous avez {Wallet}"))
+                previous_bet = mise
+                Wallet = Wallet - mise
+                choix_valide = True
+            except ValueError:
+                choix_valide = False
+                print("Votre mise et incorrect , veuillez mettre un mise valide")
+            
+    elif choix == 3:
+        print("Vous avez fold")
+        previous_bet = 0
+    elif choix == 4:
+        print(f"All-in !, vous misez {Wallet}")
+        previous_bet = Wallet
+        Wallet = 0
+        
+#6JoueurControllable(5000)
+#Joueur1.prendreUneDecision(previous_bet, previous_bet + 50)
+
 
 if DebugLog == True:
     if Joueur1.evaluationMain() == 1:
@@ -242,5 +300,3 @@ if DebugLog == True:
         print("\n" + "Évaluation : Pair")
     else:
         print("\n" + "Évaluation : High Card, la carte a pour valeur : " + str(resultat[1]))
-
-print("\n")
