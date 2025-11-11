@@ -478,7 +478,7 @@ def calcule_victoire():
     # On verifie qui est encore en jeu
     joueurs_actifs = [j for j in joueurs if not j.hasFolded]
 
-    # Cas 1: Si un seul joueur reste, il gagne
+    # Cas 1: Si il reste un seul joueur, il gagne
     if len(joueurs_actifs) == 1:
         gagnant = joueurs_actifs[0]
         print(f"\nLes autres joueurs se sont couchés.")
@@ -488,7 +488,7 @@ def calcule_victoire():
     
     # On stocke les objets joueurs et leurs mains pour les comparer
     joueurs_et_evaluations = [
-        (joueur, joueur.evaluationMain()) for joueur in joueurs_actifs
+        (joueur, joueur.evaluationMain()) for joueur in joueurs_actifs)
     ]
     
     #Cherche si il y a plusieurs mains avec les meme forces de main pour gerer les égalités, uniquement chez les joueurs actifs
@@ -513,5 +513,6 @@ def calcule_victoire():
     else:
         print(f"\nLe gagnant est : {gagnants[0]} ! Il gagne le pot !")
 Main() 
+
 
 
