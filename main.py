@@ -266,24 +266,70 @@ class Joueur:
         return (10, tuple(-k for k in kickers))
     
 def choix_joueur(portefeuille_joueur, ammount_to_call):
-    mise_joueur=0
-    choix= int(input("\nQuelle action voulez vous prendre ? (1 : Se coucher, 2: Checker, 3: Miser, 4: All-In, 5: Suivre): "))
-    action = {1:"Fold", 2:"Check", 3:"Bet", 4:"All-in", 5:"Call"}
-    if choix==1:
-            print("Vous vous êtes coucher")
-            Joueur_Humain.hasFolded = True
-    if choix==2:
+    mise_joueur = 0
+    choix_valide = False
+
+    while not choix_valide:
+        try:
+            choix = int(input("\nQuelle action voulez vous prendre ? (1 : Se coucher, 2: Checker, 3: Miser, 4: All-In, 5: Suivre): "))
+        except ValueError:
+            print("Veuillez entrer une valeur convenable")
+            continue
+        # vérifie que le joueur ne met pas n'importe quoi
+
+        action = {1: "Fold", 2: "Check", 3: "Bet", 4: "All-in", 5: "Call"}
+
+        if choix == 1:
+            print("Vous vous êtes couché")
+            Joueur_Humain.hasFolded = True  
+            #fait se coucher le joueur
+            choix_valide = True
+
+        if choix == 2:
             mise_joueur = mise_joueur
-    if choix==3:
-                mise= int(input("On mise combien ? : ")) 
-                mise_joueur= mise_joueur + mise  
-                portefeuille_joueur = portefeuille_joueur - mise  
-    if choix==4:
+            print("Vous avez checké")
+            # fait skip le tour du joueur
+            choix_valide = True
+
+        if choix == 3:
+            mise = int(input("On mise combien ? : "))
+            if mise >= portefeuille_joueur:
+                choix = 4
+            else:
+                mise_joueur = mise_joueur + mise
+                portefeuille_joueur = portefeuille_joueur - mise
+            choix_valide = True
+            # gère la mise du joueur en vérifiant qu'il ne mise pas plus que son portefeuille
+
+        if choix == 4:
             mise_joueur = mise_joueur + portefeuille_joueur
             portefeuille_joueur = 0
-    if choix==5:
+            print("Vous avez all-in")
+            choix_valide = True
+            # all in
+
+        if choix == 5:
             mise_joueur = previous_bet
-    return (action[choix],mise_joueur)
+            if mise_joueur == 0:
+                print("Vous ne pouvez pas check, personne n'a misé")
+                # vérifie que le joueur peut check
+            elif mise_joueur >= portefeuille_joueur:
+                print("Vous n'avez pas assez pour check")
+                mise_joueur = mise_joueur + portefeuille_joueur
+                portefeuille_joueur = 0
+                print("Vous avez all-in")
+                # vérifie que le joueur a assez
+            else:
+                print("Vous avez checké à", mise_joueur)
+                portefeuille_joueur = portefeuille_joueur - mise_joueur
+                choix_valide = True
+                # le joueur mise autant que le précédent
+
+        if choix >= 6:
+            print("Veuillez entrer une valeur convenable")
+        # vérifie que le joueur ne met pas n'importe quoi
+
+    return (action[choix], mise_joueur)
 
 Bot1 = Joueur(DistribuerX(2), 5000, 0.5, 0.5, False, 0, "Bot 1")
 Bot2 = Joueur(DistribuerX(2), 5000, 0.5, 0.5, False, 0, "Bot 2")
@@ -296,7 +342,6 @@ def tour_de_mise(joueurs):
     for joueur in joueurs:
         joueur.argent_mis_dans_le_round = 0
 
-
     bet_le_plus_eleve = 0
     dernier_raise = None
     actionOuverte = True
@@ -304,9 +349,13 @@ def tour_de_mise(joueurs):
     # Players who are still in the hand
     active_players = [p for p in joueurs if not p.hasFolded]
     
+    # Si un seul joueur est actif au début du tour, pas besoin de miser.
+    if len(active_players) <= 1:
+        return False
+
     #Tant que tout les joueurs n'on pas la meme somme d'argent mise dans le round on continure (l'action est ouverte)
     while actionOuverte:
-        actionOuverte = False # It will be set to True if a bet/raise occurs
+        actionOuverte = False 
     
         #On skip tout les joueurs qui on fold
         for current_player in active_players:
@@ -356,102 +405,112 @@ def tour_de_mise(joueurs):
                 actionOuverte = True
                 dernier_raise = current_player
         
-        # Si personne na raise , et que tout le monde a la meme somme d'argent mise dans le round  = le tour est fini
-        if not actionOuverte:
-            break
+        active_players = [p for p in joueurs if not p.hasFolded]
+        if len(active_players) <= 1:
+            actionOuverte = False # Fin du tour si un seul joueur reste
             
-        # On verifie si il ne reste qu'un joueur "actif"
-        if sum(1 for p in active_players if not p.hasFolded) <= 1:
-            partieFini = True
+        # Si personne n'a relancé, on sort de la boucle while.
+        if not actionOuverte:
             break
 
     print("\n--- Round de mise terminé. ---")
     print(f"Le pot est maintenant de : {pot}\n")
 
+    # On retourne True si le jeu doit continuer (plus d'un joueur actif), False sinon.
+    joueurs_restants = [p for p in joueurs if not p.hasFolded]
+    if len(joueurs_restants) <= 1:
+        return False 
+    else:
+        return True
+    
+
+
+    
 def Main():
     global board
     joueurs = [Joueur_Humain, Bot1, Bot2]
-    
     main_Joueur = [deck[index] for index in Joueur_Humain.Main]
     
     # Pre-Flop
-    if partieFini != True:
-        print("--- Tour de mise PRE-FLOP ---")
-        print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
-        tour_de_mise(joueurs) 
-    else:
+    print("--- Tour de mise PRE-FLOP ---")
+    print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
+    condition_de_fin = tour_de_mise(joueurs)
+    if not condition_de_fin:
         calcule_victoire()
-    
+        return  
+
     # Flop
-    if partieFini != True:
-        board = [deck[Distribuer()] for i in range(3)]
-        print("\n--- Tour de mise FLOP ---")
-        print(f"FLOP: {[Convertion(cards[0], cards[1]) for cards in board]}")
-        print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
-        tour_de_mise(joueurs) 
-    else:
+    board = [deck[Distribuer()] for i in range(3)]
+    print("\n--- Tour de mise FLOP ---")
+    print(f"FLOP: {[Convertion(cards[0], cards[1]) for cards in board]}")
+    print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
+    condition_de_fin = tour_de_mise(joueurs)
+    if not condition_de_fin:
         calcule_victoire()
-    
+        return
+
     # Turn
-    if partieFini != True:
-        board.append(deck[Distribuer()])
-        print("\n--- Tour de mise TURN ---")
-        print(f"TURN: {[Convertion(cards[0], cards[1]) for cards in board]}")
-        print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
-        tour_de_mise(joueurs) 
-    else:
+    board.append(deck[Distribuer()])
+    print("\n--- Tour de mise TURN ---")
+    print(f"TURN: {[Convertion(cards[0], cards[1]) for cards in board]}")
+    print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
+    condition_de_fin = tour_de_mise(joueurs)
+    if not condition_de_fin:
         calcule_victoire()
+        return
 
     # River
-    if partieFini != True:
-        board.append(deck[Distribuer()])
-        print("\n--- Tour de mise RIVER ---")
-        print(f"RIVER: {[Convertion(cards[0], cards[1]) for cards in board]}")
-        print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
-        tour_de_mise(joueurs) 
-    else:
+    board.append(deck[Distribuer()])
+    print("\n--- Tour de mise RIVER ---")
+    print(f"RIVER: {[Convertion(cards[0], cards[1]) for cards in board]}")
+    print(f"Votre main: {[Convertion(cards[0], cards[1]) for cards in main_Joueur]}")
+    condition_de_fin =  (joueurs)
+    if not condition_de_fin:
         calcule_victoire()
-    print("----- Partie Fini ! -----")
+        return
     calcule_victoire()
 
 def calcule_victoire():
-    eval_bot1 = Bot1.evaluationMain()
-    eval_bot2 = Bot2.evaluationMain()
-    eval_joueur = Joueur_Humain.evaluationMain()
+    
 
-    #Python peut comparer des tuples, pas besoin de les trier, on compare juste qui a la main la plus forte pour trouver le gagnant
+    # Liste de tous les objets joueurs
+
+    joueurs = [Joueur_Humain, Bot1, Bot2]
+    # On verifie qui est encore en jeu
+    joueurs_actifs = [j for j in joueurs if not j.hasFolded]
+
+    # Cas 1: Si un seul joueur reste, il gagne
+    if len(joueurs_actifs) == 1:
+        gagnant = joueurs_actifs[0]
+        print(f"\nLes autres joueurs se sont couchés.")
+        print(f"Le gagnant est : {gagnant} ! Il gagne le pot de {pot} !")
+        return
+
+    
+    # On stocke les objets joueurs et leurs mains pour les comparer
     joueurs_et_evaluations = [
-        ("Joueur", eval_joueur),
-        ("Bot 1", eval_bot1),
-        ("Bot 2", eval_bot2)
+        (joueur, joueur.evaluationMain()) for joueur in joueurs_actifs
     ]
-
-    # On ne compare pas les tuples directement , on prend leur deuxieme élement (l'évaluation de main + kicker) avec key=lambda item: item[1]
-    # on fait min() parce que plus l'indice est faible , plus forte est la main
+    
+    #Cherche si il y a plusieurs mains avec les meme forces de main pour gerer les égalités, uniquement chez les joueurs actifs
     meilleure_evaluation = min(joueurs_et_evaluations, key=lambda item: item[1])[1]
 
-    #Cherche si il y a plusieurs mains avec les meme forces de main pour gerer les égalités
-    gagnants = [nom for nom, evaluation in joueurs_et_evaluations if evaluation == meilleure_evaluation]
+    # La liste des gagnants ne peut contenir que des joueurs actifs.
+    gagnants = [
+        joueur for joueur, evaluation in joueurs_et_evaluations 
+        if evaluation == meilleure_evaluation
+    ]
 
+    print(f"\nLe pot final est de {pot}")
 
-    print(f"\nLe pot est de {pot}")
-
-    hand_name_joueur = ConvertionIndicePuissanceMain[eval_joueur[0]]
-    kickers_joueur = eval_joueur[1:]
-    print(f"Le Joueur avait : {hand_name_joueur}, kickers/valeurs : {kickers_joueur}")
-
-    hand_name_1 = ConvertionIndicePuissanceMain[eval_bot1[0]]
-    kickers_1 = eval_bot1[1:]
-    print(f"Le Bot 1 avait : {hand_name_1}, kickers/valeurs : {kickers_1}")
-
-    hand_name_2 = ConvertionIndicePuissanceMain[eval_bot2[0]]
-    kickers_2 = eval_bot2[1:]
-    print(f"Le Bot 2 avait : {hand_name_2}, kickers/valeurs : {kickers_2}")
-
-    # Anonce le/les gagnant(s)
+    print(f"Main du Joueur : {ConvertionIndicePuissanceMain.get(Joueur_Humain.evaluationMain()[0])} ({'Actif' if not Joueur_Humain.hasFolded else 'Couché'})")
+    print(f"Main de Bot 1 : {ConvertionIndicePuissanceMain.get(Bot1.evaluationMain()[0])} ({'Actif' if not Bot1.hasFolded else 'Couché'})")
+    print(f"Main de Bot 2 : {ConvertionIndicePuissanceMain.get(Bot2.evaluationMain()[0])} ({'Actif' if not Bot2.hasFolded else 'Couché'})")
+    
+    # Annonce du ou des gagnants
     if len(gagnants) > 1:
-        print(f"\nÉgalité entre : {', '.join(gagnants)}! Ils se partagent le pot de {pot} !")
+        noms_des_gagnants = [str(g) for g in gagnants]
+        print(f"\nÉgalité entre : {', '.join(noms_des_gagnants)} ! Ils se partagent le pot.")
     else:
-        print(f"\nLe gagnant est : {gagnants[0]}! Il gagne {pot} !")
-
+        print(f"\nLe gagnant est : {gagnants[0]} ! Il gagne le pot !")
 Main() 
