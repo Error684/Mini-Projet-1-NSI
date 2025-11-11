@@ -169,7 +169,7 @@ class Joueur:
         allCards.sort(key=lambda x: x[1], reverse=True)
 
         valeurs_de_allCards = [card[1] for card in allCards]
-        # On utilise la fonction Counter de la lib Collection , cards'est plus simple te plus efficace
+        # On utilise la fonction Counter de la lib Collection , s'est plus simple et plus efficace
         compteur_valeurs = Counter(valeurs_de_allCards)
 
         for couleur, valeur in allCards:
@@ -514,3 +514,4 @@ def calcule_victoire():
     else:
         print(f"\nLe gagnant est : {gagnants[0]} ! Il gagne le pot !")
 Main() 
+
