@@ -345,8 +345,7 @@ def tour_de_mise(joueurs):
     bet_le_plus_eleve = 0
     dernier_raise = None
     actionOuverte = True
-
-    # Players who are still in the hand
+    
     active_players = [p for p in joueurs if not p.hasFolded]
     
     # Si un seul joueur est actif au début du tour, pas besoin de miser.
@@ -514,4 +513,5 @@ def calcule_victoire():
     else:
         print(f"\nLe gagnant est : {gagnants[0]} ! Il gagne le pot !")
 Main() 
+
 
